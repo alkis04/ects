@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course ECTS Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <style>
+        /* Make progress bar fixed at the bottom */
+        .fixed-progress {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="container mx-auto p-4 pb-20"> <!-- Added pb-20 for extra padding at the bottom -->
+        <h1 class="text-3xl font-bold mb-4">Course ECTS Tracker</h1>
+        
+        <div v-for="semesterData in courses" :key="semesterData.semester" class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">[[ semesterData.semester ]]</h2>
+            <div class="flex flex-col">
+                <div v-for="course in semesterData.courses" 
+                     :key="course.code"
+                     class="bg-white shadow-md rounded px-8 py-6 mb-4 cursor-pointer flex justify-between items-center"
+                     @click="toggleCourseSelection(course)">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">[[ course.title ]]</h3>
+                        <p>Code: [[ course.code ]]</p>
+                        <p>ECTS: [[ course.ects ]]</p>
+                        <p>Type: [[ course.type ]]</p>
+                    </div>
+                    <input type="checkbox" class="form-checkbox h-5 w-5 text-gray-600" v-model="course.selected">
+                </div>
+            </div>
+        </div>
+
+        <!-- Padding div to create space for the last course -->
+        <div class="pb-20"></div>
+        
+        <!-- Progress bar at the bottom -->
+        <div class="fixed-progress bg-white shadow-md px-8 py-4">
+            <h2 class="text-xl font-semibold mb-2">Total ECTS: [[ totalECTS ]]</h2>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div class="bg-blue-600 h-2.5 rounded-full" :style="{ width: progress + '%' }"></div>
+            </div>
+            <p class="mt-2">Progress: [[ progress.toFixed(2) ]]%</p>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'],
+            data: {
+                courses: {{ courses|tojson|safe }},
+                totalECTS: 0,
+                progress: 0
+            },
+            methods: {
+                updateECTS() {
+                    const selectedCourses = this.courses.flatMap(semester => 
+                        semester.courses.filter(course => course.selected)
+                    );
+                    fetch('/update_ects', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({selectedCourses: selectedCourses}),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.totalECTS = data.total_ects;
+                        this.progress = data.progress;
+                    });
+                },
+                toggleCourseSelection(course) {
+                    // Toggle selection state of the course
+                    course.selected = !course.selected;
+                    this.updateECTS();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
